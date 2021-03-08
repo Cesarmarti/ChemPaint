@@ -1,0 +1,30 @@
+body, html {
+	margin: 0px;
+	padding: 0px;
+}
+.slika {
+	
+}
+
+.box {
+	position: relative;
+	height: 720px;
+	width: 1280px;
+
+}
+.row { display: flex; font-size: 9.5px; text-align: center; color: red }
+.cell { width:10px,height:10px;}
+.cell:hover{
+	opacity: 0.2;
+	background-color: gray;
+}
+
+svg {
+	height: 100%;
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 100%;
+}
+
+.small_font { font: bold 15px sans-serif; fill:black; }
