@@ -1,8 +1,9 @@
-const {app, BrowserWindow} = require('electron') 
+const {app, BrowserWindow, Menu, MenuItem, ipcMain } = require('electron') 
 const url = require('url') 
 const path = require('path')  
 
 let win  
+
 
 function createWindow() { 
 	//height - 62, width - 19 ??
@@ -12,14 +13,75 @@ function createWindow() {
 		protocol: 'file:', 
 		slashes: true 
 	}))
-
-	/*win.on('resize', function () {
-		var size   = win.getSize();
-		var width  = size[0];
-		var height = size[1];
-		console.log("width: " + width);
-		console.log("height: " + height);
-	});*/ 
 }  
+
+const template = [
+   {
+      label: 'File',
+      submenu: [
+         {
+            label: 'Save',
+            click: function(){
+            	const {dialog} = require('electron') 
+				dialog.showSaveDialog(function (fileNames) { 	 
+				  if(fileNames === undefined) { 
+				     console.log("No name given"); 
+				  
+				  } else { 
+				     win.webContents.send('getImage', fileNames); 
+				  } 
+				});
+            	
+            }
+         }
+      ]
+   },
+   
+   {
+      label: 'View',
+      submenu: [
+         {
+            role: 'reload'
+         },
+         {
+            role: 'toggledevtools'
+         },
+         {
+            type: 'separator'
+         },
+         {
+            role: 'resetzoom'
+         },
+         {
+            role: 'zoomin'
+         },
+         {
+            role: 'zoomout'
+         },
+         {
+            type: 'separator'
+         },
+         {
+            role: 'togglefullscreen'
+         }
+      ]
+   },
+   
+   {
+      role: 'window',
+      submenu: [
+         {
+            role: 'minimize'
+         },
+         {
+            role: 'close'
+         }
+      ]
+   }
+   
+]
+
+const menu = Menu.buildFromTemplate(template)
+Menu.setApplicationMenu(menu)
 
 app.on('ready', createWindow) 
