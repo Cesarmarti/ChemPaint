@@ -23,6 +23,11 @@ var source_id = 0;
 var conn_offset = 10;
 var conn_gap = 4;
 
+//snap align
+var snap_align = true
+var conn_length = -1
+var snap_precision = 40
+
 window.addEventListener('contextmenu', (e) => {
    e.preventDefault()
    rightClickPosition = {x: e.x, y: e.y}
@@ -54,13 +59,25 @@ window.addEventListener('contextmenu', (e) => {
             do_align= !do_align
          }
       }))
+      menu.append(new MenuItem({label: 'Snap align', type: 'checkbox', checked: snap_align,
+         click(){
+            snap_align= !snap_align
+         }
+      }))
    }
    
    menu.popup(remote.getCurrentWindow())
 }, false)
 
 ipcRenderer.on('getImage', (event, data) => {
-   console.log(data)
+   var svg_ele = document.getElementById("svg_image").cloneNode(true)
+   var bounds = remote.getCurrentWindow().webContents.getOwnerBrowserWindow().getBounds()
+   svg_ele.setAttribute("width",bounds.width)
+   svg_ele.setAttribute("height",bounds.height)
+   var data_image = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+   var s = new XMLSerializer();
+   var data_image = data_image + s.serializeToString(svg_ele);
+   fs.appendFileSync(data+".svg", data_image);
 });
 
 
@@ -148,6 +165,10 @@ function deleteItem(e){
 
    nodes.delete(id)
 
+   if(nodes.size<=1)
+      conn_length = -1
+
+
    ele.parentNode.removeChild(ele);
 }
 
@@ -189,6 +210,61 @@ function alignY(y){
    }
 }
 
+function snapAlign(x,y){
+   if(conn_length==-1 || !snapAlign)
+      return x
+   nodes.forEach(function(value, key, map){
+      if(value.y!=y)
+         return
+      //right
+      if((x-value.x)>0 && x-value.x<conn_length+snap_precision){
+         x = value.x+conn_length
+      }
+      else if((value.x-x)>0 && value.x-x<conn_length+snap_precision){
+         x = value.x-conn_length
+      }
+
+   })
+   var is_in = false
+   for(var i = 0;i<known_horz.length;i++){
+      if(known_horz[i]==x)
+         is_in = true
+   }
+   if(!is_in){
+      known_horz.push(x)
+   }
+
+   return x
+}
+
+function snapAlignY(y,x){
+   if(conn_length==-1 || !snapAlign)
+      return y
+   nodes.forEach(function(value, key, map){
+      if(value.x!=x)
+         return
+      //down
+      if((y-value.y)>0 && y-value.y<conn_length+snap_precision){
+         y = value.y+(conn_length)
+      }
+      else if((value.y-y)>0 && value.y-y<conn_length+snap_precision){
+         y = value.y-(conn_length)
+      }
+
+   })
+
+   var is_in = false
+   for(var i = 0;i<known_vert.length;i++){
+      if(known_vert[i]==y)
+         is_in = true
+   }
+   if(!is_in){
+      known_vert.push(y)
+   }
+   return y
+}
+
+
 function addNode(x,y,formula){
    dolzina = formula.length
    offset = 0;
@@ -196,12 +272,13 @@ function addNode(x,y,formula){
    var svg_ele = document.createElementNS('http://www.w3.org/2000/svg',"text")
    x = alignX(x);
    
-   svg_ele.setAttribute("class","small_font")
+
+   svg_ele.setAttribute("style","font: 15px sans-serif; fill:black;")
 
    var node_id = "n_"+node_index;
    svg_ele.setAttribute("id",node_id)
    node_index++;
-   nodes.set(node_id,{id:node_id,type:"text",top:[],bot:[],left:[],right:[],forDelete:false})
+   
    //split formula
 
    chars = formula.split(/([0-9]+)/)
@@ -235,14 +312,44 @@ function addNode(x,y,formula){
    image_svg.appendChild(svg_ele)
 
    var ele_width = svg_ele.getBoundingClientRect().width;
-   svg_ele.setAttribute("x", x-Math.floor(ele_width/2)+"px");
+   
 
    var ele_height = svg_ele.getBoundingClientRect().height;
-   y = alignY(y)+offset;
+   y = alignY(y)
+   x = snapAlign(x,y);
+
+   y = snapAlignY(y,x);
+   y = y+offset;
    svg_ele.addEventListener("click",addConnection)
+
+   svg_ele.setAttribute("x", x-Math.floor(ele_width/2)+"px");
    svg_ele.setAttribute("y", y-Math.floor(ele_height/2)+"px");
 
-   
+   nodes.set(node_id,{id:node_id,type:"text",top:[],bot:[],left:[],right:[],forDelete:false,'x':x,'y':y})
+   //check if new allign distance
+   if(nodes.size==2){
+      var i = 0;
+      var sTa;
+      var eNd;
+      nodes.forEach(function(value, key, map){
+         if(i==0){
+            sTa = value
+         }else{
+            eNd = value;
+         }
+         i++;
+
+      })
+      var x1 = sTa.x
+      var y1 = sTa.y
+      var x2 = eNd.x
+      var y2 = eNd.y
+      if(x1-x2==0){
+         conn_length = Math.abs(y1-y2)
+      }else{
+         conn_length = Math.abs(x1-x2)
+      }
+   }
 }
 function readyNode(x,y){
    dialogs.prompt('Enter formula', ok => {
@@ -424,7 +531,7 @@ function makeConnection(src_id,dest_id){
       line.setAttribute("y1",s_y-offsety_s)
       line.setAttribute("x2",d_x + offset2)
       line.setAttribute("y2",d_y-offsety_d)
-      line.setAttribute("style","stroke:black;stroke-width:2")
+      line.setAttribute("style","stroke:black;stroke-width:1")
       var conn_id = "c_"+conn_index
       line.setAttribute("id","c_"+conn_index)
       conn_index = conn_index+1;

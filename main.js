@@ -7,7 +7,7 @@ let win
 
 function createWindow() { 
 	//height - 62, width - 19 ??
-	win = new BrowserWindow({width: 1280, height: 720}) 
+	win = new BrowserWindow({ width: 1280, height: 720, webPreferences: { nodeIntegration: true,contextIsolation: false,enableRemoteModule: true } });
 	win.loadURL(url.format ({ 
 		pathname: path.join(__dirname, 'index.html'), 
 		protocol: 'file:', 
